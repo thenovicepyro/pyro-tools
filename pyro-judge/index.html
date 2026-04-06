@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="Quick tap scoring for live pyromusical judging" />
+    <title>PyroJudge</title>
+    <style>
+        :root {
+            --bg: #0f1115;
+            --panel: #191d24;
+            --panel-2: #222833;
+            --panel-3: #2b3340;
+            --text: #f3f5f7;
+            --muted: #b8c0cc;
+            --accent: #4da3ff;
+            --good: rgba(49, 167, 106, 0.22);
+            --bad: rgba(190, 68, 68, 0.24);
+            --danger: #d66d6d;
+            --border: rgba(255,255,255,0.08);
+            --shadow: 0 10px 25px rgba(0,0,0,0.28);
+            --shell-pad-top: calc(10px + env(safe-area-inset-top));
+            --shell-pad-right: calc(10px + env(safe-area-inset-right));
+            --shell-pad-bottom: calc(10px + env(safe-area-inset-bottom));
+            --shell-pad-left: calc(10px + env(safe-area-inset-left));
+            --app-height: 100dvh;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            margin: 0;
+            padding: 0;
+            height: -webkit-fill-available;
+            background: var(--bg);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-text-size-adjust: 100%;
+            min-height: 100vh;
+            min-height: 100dvh;
+            position: fixed;
+            inset: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            overflow: hidden;
+        }
+
+        .app-shell {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            /* Extend past the safe area to the physical screen bottom */
+            bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+            display: flex;
+            flex-direction: column;
+            padding: var(--shell-pad-top) var(--shell-pad-right) var(--shell-pad-bottom) var(--shell-pad-left);
+            overflow: hidden;
+            background: var(--bg);
+        }
+
+        .app {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .app-inner {
+            max-width: 760px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .title-wrap h1 {
+            font-size: 1.2rem;
+            line-height: 1.1;
+            margin: 0;
+        }
+
+        .title-wrap p {
+            margin: 2px 0 0;
+            color: var(--muted);
+            font-size: 0.75rem;
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        button {
+            border: 1px solid var(--border);
+            background: var(--panel);
+            color: var(--text);
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            touch-action: manipulation;
+        }
+
+        .action-btn {
+            min-height: 38px;
+            padding: 0 10px;
+            font-size: 0.86rem;
+            font-weight: 600;
+        }
+
+        .categories {
+            display: grid;
+            gap: 8px;
+        }
+
+        .category-card {
+            background: var(--panel);
+            border-radius: 14px;
+            padding: 9px;
+            box-shadow: var(--shadow);
+            transition: background-color 0.15s ease;
+        }
+
+            .category-card.above {
+                background: linear-gradient(0deg, var(--good), var(--good)), var(--panel);
+            }
+
+            .category-card.below {
+                background: linear-gradient(0deg, var(--bad), var(--bad)), var(--panel);
+            }
+
+        .category-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 7px;
+        }
+
+        .category-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            line-height: 1.2;
+        }
+
+        .category-meta {
+            text-align: right;
+            color: var(--muted);
+            font-size: 0.72rem;
+            line-height: 1.25;
+            white-space: nowrap;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 78px 1fr 78px;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .score-btn {
+            min-height: 48px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border-radius: 16px;
+            background: var(--panel-2);
+        }
+
+            .score-btn:active,
+            .action-btn:active,
+            .save-btn:active,
+            .close-btn:active,
+            .secondary-btn:active,
+            .danger-btn:active,
+            .icon-btn:active {
+                transform: scale(0.98);
+            }
+
+        .score-display {
+            text-align: center;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            font-size: clamp(1.35rem, 4vw, 1.9rem);
+            font-weight: 800;
+            letter-spacing: 0.02em;
+        }
+
+        .footer-total {
+            flex: 0 0 auto;
+            margin-top: 10px;
+            background: rgba(12, 14, 18, 0.94);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+        }
+
+        .footer-inner {
+            max-width: 760px;
+            margin: 0 auto;
+            background: var(--panel);
+            border-radius: 14px;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            box-shadow: var(--shadow);
+        }
+
+        .footer-label {
+            font-size: 0.78rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 700;
+        }
+
+        .footer-score {
+            font-size: clamp(1.3rem, 5vw, 1.8rem);
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        dialog {
+            width: min(760px, calc(100vw - 24px));
+            max-height: min(86vh, 860px);
+            border: 1px solid var(--border);
+            background: var(--panel);
+            color: var(--text);
+            border-radius: 20px;
+            padding: 0;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+        }
+
+            dialog::backdrop {
+                background: rgba(0,0,0,0.5);
+                backdrop-filter: blur(2px);
+            }
+
+        .modal-shell {
+            display: flex;
+            flex-direction: column;
+            max-height: min(86vh, 860px);
+        }
+
+        .modal-header {
+            padding: 18px 18px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 8px;
+        }
+
+            .modal-header h2 {
+                margin: 0;
+                font-size: 1.12rem;
+            }
+
+            .modal-header p {
+                margin: 6px 0 0;
+                color: var(--muted);
+                font-size: 0.88rem;
+                line-height: 1.35;
+            }
+
+        .close-btn {
+            min-width: 44px;
+            min-height: 44px;
+            font-size: 1.2rem;
+            border-radius: 12px;
+            background: var(--panel-2);
+            flex-shrink: 0;
+        }
+
+        .modal-tabs {
+            display: flex;
+            gap: 8px;
+            padding: 0 18px 10px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            min-height: 38px;
+            padding: 0 12px;
+            font-size: 0.86rem;
+            font-weight: 700;
+            background: var(--panel-2);
+        }
+
+            .tab-btn.active {
+                background: var(--accent);
+                color: #07111f;
+                border-color: transparent;
+            }
+
+        .modal-body {
+            padding: 0 18px 18px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            display: grid;
+            gap: 10px;
+        }
+
+        .tab-panel[hidden] {
+            display: none;
+        }
+
+        .settings-body,
+        .categories-manager {
+            display: grid;
+            gap: 8px;
+        }
+
+        .setting-row,
+        .manage-row,
+        .new-category-row {
+            display: grid;
+            gap: 10px;
+            align-items: center;
+            padding: 12px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+        }
+
+        .setting-row {
+            grid-template-columns: 1fr 90px 74px;
+        }
+
+        .manage-row {
+            grid-template-columns: minmax(0, 1.15fr) 92px 92px 52px;
+            align-items: end;
+        }
+
+        .new-category-row {
+            grid-template-columns: minmax(0, 1.15fr) 92px 92px;
+        }
+
+        .field-stack {
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+        }
+
+            .field-stack label,
+            .setting-row label {
+                font-weight: 600;
+                line-height: 1.2;
+                font-size: 0.92rem;
+            }
+
+            .field-stack small,
+            .setting-row small {
+                display: block;
+                color: var(--muted);
+                font-weight: 400;
+                font-size: 0.75rem;
+                line-height: 1.25;
+            }
+
+        .setting-row input,
+        .manage-row input,
+        .new-category-row input,
+        .manage-row textarea,
+        .new-category-row textarea {
+            width: 100%;
+            min-height: 42px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--panel-2);
+            color: var(--text);
+            font-size: 0.98rem;
+            font-weight: 700;
+            padding: 0 12px;
+        }
+
+        .max-pill {
+            min-height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.04);
+            color: var(--muted);
+            border: 1px solid var(--border);
+            font-size: 0.92rem;
+            font-weight: 700;
+        }
+
+        .manage-row textarea,
+        .new-category-row textarea {
+            min-height: 84px;
+            padding: 10px 12px;
+            resize: vertical;
+            font-weight: 500;
+        }
+
+        .description-row {
+            grid-column: 1 / -1;
+        }
+
+        .category-card.clickable {
+            cursor: pointer;
+        }
+
+            .category-card.clickable:active {
+                transform: scale(0.995);
+            }
+
+        .description-hint {
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 0.72rem;
+            line-height: 1.25;
+        }
+
+        .info-dialog-body {
+            padding: 0 18px 18px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .info-description {
+            margin: 0;
+            color: var(--text);
+            font-size: 0.98rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .info-empty {
+            color: var(--muted);
+            font-size: 0.92rem;
+            line-height: 1.45;
+            margin: 0;
+        }
+
+        .icon-btn,
+        .danger-btn,
+        .save-btn,
+        .secondary-btn {
+            min-height: 42px;
+            padding: 0 14px;
+            font-size: 0.92rem;
+            font-weight: 700;
+            border-radius: 12px;
+        }
+
+        .icon-btn {
+            min-width: 42px;
+            padding: 0;
+            background: var(--panel-2);
+        }
+
+        .save-btn {
+            background: var(--accent);
+            color: #07111f;
+            border-color: transparent;
+        }
+
+        .secondary-btn,
+        .danger-btn {
+            background: var(--panel-2);
+        }
+
+        .danger-btn {
+            color: #ffd6d6;
+            border-color: rgba(214,109,109,0.4);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            padding: 0 18px 18px;
+            flex-wrap: wrap;
+            border-top: 1px solid rgba(255,255,255,0.03);
+            margin-top: 8px;
+            padding-top: 16px;
+        }
+
+        .helper-text {
+            color: var(--muted);
+            font-size: 0.75rem;
+            line-height: 1.45;
+        }
+
+        .empty-text {
+            color: var(--muted);
+            font-size: 0.84rem;
+            line-height: 1.45;
+            padding: 2px 0;
+        }
+
+        /* Live Mode */
+        .live-overlay {
+            position: fixed;
+            inset: 0;
+            bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            padding: var(--shell-pad-top) var(--shell-pad-right) var(--shell-pad-bottom) var(--shell-pad-left);
+            z-index: 100;
+        }
+
+            .live-overlay[hidden] {
+                display: none;
+            }
+
+        .live-header {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-shrink: 0;
+        }
+
+        .live-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .live-end-btn {
+            min-height: 38px;
+            padding: 0 16px;
+            font-size: 0.86rem;
+            font-weight: 700;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--panel-2);
+            color: var(--text);
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .live-buttons {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            min-height: 0;
+        }
+
+        .live-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 28px;
+            border: none;
+            cursor: pointer;
+            touch-action: manipulation;
+            gap: 12px;
+            transition: transform 0.08s ease, filter 0.08s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+            .live-btn:active {
+                transform: scale(0.95);
+                filter: brightness(1.15);
+            }
+
+        .live-wow {
+            background: linear-gradient(160deg, #1a5c38, #22a05a);
+            box-shadow: 0 8px 32px rgba(34, 160, 90, 0.35);
+        }
+
+        .live-oops {
+            background: linear-gradient(160deg, #6b1f1f, #c44040);
+            box-shadow: 0 8px 32px rgba(196, 64, 64, 0.35);
+        }
+
+        .live-btn-label {
+            font-size: clamp(2rem, 8vw, 3.5rem);
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            color: #fff;
+            line-height: 1;
+        }
+
+        .live-btn-count {
+            font-size: clamp(2.5rem, 10vw, 5rem);
+            font-weight: 900;
+            color: rgba(255,255,255,0.9);
+            line-height: 1;
+        }
+
+        .live-header-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .live-end-primary {
+            background: var(--accent);
+            color: #07111f;
+            border-color: transparent;
+        }
+
+        .live-score-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 8px 18px;
+            margin-bottom: 16px;
+            flex-shrink: 0;
+        }
+
+        .live-score-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+        }
+
+        .live-score-value {
+            font-size: clamp(1.3rem, 5vw, 1.8rem);
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .tally-ref {
+            display: flex;
+            gap: 12px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--muted);
+        }
+
+        .tally-wow {
+            color: #4ade80;
+        }
+
+        .tally-oops {
+            color: #f87171;
+        }
+
+        @media (max-width: 560px) {
+            :root {
+                --shell-pad-top: calc(8px + env(safe-area-inset-top));
+                --shell-pad-right: calc(8px + env(safe-area-inset-right));
+                --shell-pad-bottom: calc(8px + env(safe-area-inset-bottom));
+                --shell-pad-left: calc(8px + env(safe-area-inset-left));
+            }
+
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .top-actions {
+                width: 100%;
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .action-btn {
+                padding: 0 8px;
+                font-size: 0.8rem;
+            }
+
+            .controls {
+                grid-template-columns: 60px 1fr 60px;
+                gap: 7px;
+            }
+
+            .score-btn,
+            .score-display {
+                min-height: 44px;
+            }
+
+            .setting-row {
+                grid-template-columns: 1fr 78px 60px;
+            }
+
+            .manage-row,
+            .new-category-row {
+                grid-template-columns: 1fr 74px 74px 44px;
+            }
+
+            .new-category-row {
+                grid-template-columns: 1fr 74px 74px;
+            }
+
+            .description-row {
+                grid-column: 1 / -1;
+            }
+
+            .modal-header,
+            .modal-tabs,
+            .modal-body,
+            .modal-actions {
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <div class="app">
+            <div class="app-inner">
+                <header class="topbar">
+                    <div class="title-wrap">
+                        <h1>PyroJudge</h1>
+                        <p>Quick tap scoring for live pyromusical judging.</p>
+                    </div>
+                    <div class="top-actions">
+                        <button class="action-btn" id="fullscreenBtn" type="button" aria-label="Toggle full screen">⛶ Full</button>
+                        <button class="action-btn" id="liveModeBtn" type="button">🎆 Live</button>
+                        <button class="action-btn" id="resetBtn" type="button">Reset</button>
+                        <button class="action-btn" id="settingsBtn" type="button">Manage</button>
+                    </div>
+                </header>
+
+                <main class="categories" id="categories"></main>
+            </div>
+        </div>
+
+        <div class="footer-total">
+            <div class="footer-inner">
+                <div>
+                    <div class="footer-label">Total Score</div>
+                </div>
+                <div class="footer-score" id="totalScore">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Mode Overlay -->
+    <div id="liveModeOverlay" class="live-overlay" hidden>
+        <div class="live-header">
+            <div class="live-title">🎆 Live Mode</div>
+            <div class="live-header-actions">
+                <button class="live-end-btn" id="liveUndoBtn" type="button">Undo</button>
+                <button class="live-end-btn" id="liveResetBtn" type="button">Reset</button>
+                <button class="live-end-btn live-end-primary" id="liveEndBtn" type="button">End Show</button>
+            </div>
+        </div>
+        <div class="live-score-bar">
+            <div class="live-score-label">Score</div>
+            <div class="live-score-value" id="liveScore">0</div>
+        </div>
+        <div class="live-buttons">
+            <button class="live-btn live-wow" id="wowBtn" type="button">
+                <span class="live-btn-label">WOW</span>
+                <span class="live-btn-count" id="wowCount">0</span>
+            </button>
+            <button class="live-btn live-oops" id="oopsBtn" type="button">
+                <span class="live-btn-label">OOPS</span>
+                <span class="live-btn-count" id="oopsCount">0</span>
+            </button>
+        </div>
+    </div>
+
+    <dialog id="settingsDialog">
+        <div class="modal-shell">
+            <div class="modal-header">
+                <div>
+                    <h2>Scoring Setup</h2>
+                    <p>Edit baselines or fully manage categories. Changes save on this device.</p>
+                </div>
+                <button class="close-btn" id="closeSettingsBtn" type="button" aria-label="Close settings">✕</button>
+            </div>
+
+            <div class="modal-tabs">
+                <button class="tab-btn active" type="button" data-tab="baselines">Baselines</button>
+                <button class="tab-btn" type="button" data-tab="categories">Categories</button>
+            </div>
+
+            <div class="modal-body">
+                <section class="tab-panel" id="tab-baselines">
+                    <form id="settingsForm">
+                        <div class="settings-body" id="settingsBody"></div>
+                        <div class="modal-actions">
+                            <button class="secondary-btn" id="defaultsBtn" type="button">Restore Defaults</button>
+                            <button class="save-btn" type="submit">Save Baselines</button>
+                        </div>
+                    </form>
+                    <div class="helper-text">Saving baselines also resets the current show to those values.</div>
+                    <div class="setting-row" style="margin-top:8px">
+                        <label for="incrementInput">
+                            Scoring increment
+                            <small>How much each +/− tap changes a score</small>
+                        </label>
+                        <input id="incrementInput"
+                               type="number"
+                               inputmode="decimal"
+                               min="0.1"
+                               max="10"
+                               step="0.1"
+                               value="0.5" />
+                        <button class="secondary-btn" id="saveIncrementBtn" type="button">Save</button>
+                    </div>
+                </section>
+
+                <section class="tab-panel" id="tab-categories" hidden>
+                    <form id="categoriesForm">
+                        <div class="categories-manager" id="categoriesManager"></div>
+                        <div class="modal-actions">
+                            <button class="secondary-btn" id="addCategoryBtn" type="button">Add Category</button>
+                            <button class="danger-btn" id="restoreCategoriesBtn" type="button">Restore Default Categories</button>
+                            <button class="save-btn" type="submit">Save Categories</button>
+                        </div>
+                    </form>
+                    <div class="helper-text">You can add, rename, edit max score, edit baseline, or remove categories here.</div>
+                </section>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="infoDialog">
+        <div class="modal-shell">
+            <div class="modal-header">
+                <div>
+                    <h2 id="infoDialogTitle">Category Details</h2>
+                </div>
+                <button class="close-btn" id="closeInfoBtn" type="button" aria-label="Close category details">✕</button>
+            </div>
+            <div class="info-dialog-body">
+                <p class="info-description" id="infoDialogDescription"></p>
+            </div>
+        </div>
+    </dialog>
+
+    <script>
+        function syncAppHeight() {
+            // Use innerHeight (layout viewport) so the shell always fills the full screen,
+            // including areas behind Safari's browser chrome on iPhone.
+            document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+        }
+
+        syncAppHeight();
+        window.addEventListener('load', () => {
+            syncAppHeight();
+            requestAnimationFrame(() => {
+                syncAppHeight();
+                requestAnimationFrame(syncAppHeight);
+            });
+        });
+        window.addEventListener('resize', syncAppHeight);
+        window.addEventListener('orientationchange', () => {
+            syncAppHeight();
+            setTimeout(syncAppHeight, 150);
+            setTimeout(syncAppHeight, 400);
+        });
+        window.addEventListener('pageshow', syncAppHeight);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', syncAppHeight);
+            window.visualViewport.addEventListener('scroll', syncAppHeight);
+        }
+
+        const defaultCategoryTemplate = [
+            { id: 'artistic', label: 'Artistic Design', max: 25, baseline: 18, description: 'Overall show quality, balance, rhythm, and proportion' },
+            { id: 'sync', label: 'Synchronization', max: 20, baseline: 15, description: 'How well are events and audio synced' },
+            { id: 'innovation', label: 'Innovation', max: 20, baseline: 14, description: 'Creative use of effects or designs' },
+            { id: 'color', label: 'Color & Effects', max: 15, baseline: 11, description: 'Effect choices and colors are complimentary of the music and each other' },
+            { id: 'audio', label: 'Audio', max: 10, baseline: 7, description: 'Soundtrack quality, transitions, remains within time limits' },
+            { id: 'technical', label: 'Technical Execution', max: 10, baseline: 7, description: 'Utilization of the field, equipment, and show parameters' }
+        ];
+
+        const STORAGE_KEYS = {
+            categories: 'pyro-judge-categories-v2',
+            baselines: 'pyro-judge-baselines-v2',
+            scores: 'pyro-judge-scores-v2',
+            increment: 'pyro-judge-increment-v2'
+        };
+
+        let categories = loadCategories();
+        let baselines = loadBaselines();
+        let scores = loadScores();
+        let scoreIncrement = loadIncrement();
+        let editableCategories = [];
+        let activeTab = 'baselines';
+
+        const categoriesEl = document.getElementById('categories');
+        const totalScoreEl = document.getElementById('totalScore');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsDialog = document.getElementById('settingsDialog');
+        const settingsBody = document.getElementById('settingsBody');
+        const categoriesManager = document.getElementById('categoriesManager');
+        const settingsForm = document.getElementById('settingsForm');
+        const categoriesForm = document.getElementById('categoriesForm');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const infoDialog = document.getElementById('infoDialog');
+        const infoDialogTitle = document.getElementById('infoDialogTitle');
+        const infoDialogDescription = document.getElementById('infoDialogDescription');
+        const closeInfoBtn = document.getElementById('closeInfoBtn');
+        const defaultsBtn = document.getElementById('defaultsBtn');
+        const addCategoryBtn = document.getElementById('addCategoryBtn');
+        const restoreCategoriesBtn = document.getElementById('restoreCategoriesBtn');
+        const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
+        const tabPanels = {
+            baselines: document.getElementById('tab-baselines'),
+            categories: document.getElementById('tab-categories')
+        };
+
+        normalizeState();
+        renderCategories();
+        updateTotal();
+        updateFullscreenButton();
+        document.getElementById('incrementInput').value = scoreIncrement;
+
+        const liveModeBtn = document.getElementById('liveModeBtn');
+        const liveModeOverlay = document.getElementById('liveModeOverlay');
+        const liveEndBtn = document.getElementById('liveEndBtn');
+        const wowBtn = document.getElementById('wowBtn');
+        const oopsBtn = document.getElementById('oopsBtn');
+        const wowCountEl = document.getElementById('wowCount');
+        const oopsCountEl = document.getElementById('oopsCount');
+
+        let wowCount = 0;
+        let oopsCount = 0;
+        let liveScore = 0;
+        let liveHistory = [];
+
+        liveModeBtn.addEventListener('click', () => {
+            wowCount = 0;
+            oopsCount = 0;
+            liveScore = 0;
+            liveHistory = [];
+            wowCountEl.textContent = '0';
+            oopsCountEl.textContent = '0';
+            document.getElementById('liveScore').textContent = '0';
+            updateLiveUndoBtn();
+            liveModeOverlay.hidden = false;
+        });
+
+        liveEndBtn.addEventListener('click', () => {
+            liveModeOverlay.hidden = true;
+            renderTallyRef();
+        });
+
+        document.getElementById('liveResetBtn').addEventListener('click', () => {
+            if (!confirm('Reset live totals?')) return;
+            wowCount = 0;
+            oopsCount = 0;
+            liveScore = 0;
+            liveHistory = [];
+            wowCountEl.textContent = '0';
+            oopsCountEl.textContent = '0';
+            document.getElementById('liveScore').textContent = '0';
+            updateLiveUndoBtn();
+        });
+
+        document.getElementById('liveUndoBtn').addEventListener('click', () => {
+            if (!liveHistory.length) return;
+            const last = liveHistory.pop();
+            if (last === 'wow') { wowCount--; liveScore--; wowCountEl.textContent = wowCount; }
+            if (last === 'oops') { oopsCount--; liveScore++; oopsCountEl.textContent = oopsCount; }
+            document.getElementById('liveScore').textContent = liveScore;
+            updateLiveUndoBtn();
+        });
+
+        function updateLiveUndoBtn() {
+            const btn = document.getElementById('liveUndoBtn');
+            const last = liveHistory[liveHistory.length - 1];
+            btn.textContent = last ? ('Undo ' + (last === 'wow' ? 'WOW' : 'OOPS')) : 'Undo';
+            btn.disabled = !liveHistory.length;
+            btn.style.opacity = liveHistory.length ? '1' : '0.4';
+        }
+
+        wowBtn.addEventListener('click', () => {
+            wowCount++;
+            liveScore++;
+            liveHistory.push('wow');
+            wowCountEl.textContent = wowCount;
+            document.getElementById('liveScore').textContent = liveScore;
+            updateLiveUndoBtn();
+        });
+
+        oopsBtn.addEventListener('click', () => {
+            oopsCount++;
+            liveScore--;
+            liveHistory.push('oops');
+            oopsCountEl.textContent = oopsCount;
+            document.getElementById('liveScore').textContent = liveScore;
+            updateLiveUndoBtn();
+        });
+
+        function renderTallyRef() {
+            const existing = document.getElementById('tallyRef');
+            if (existing) existing.remove();
+            if (wowCount === 0 && oopsCount === 0) return;
+            const tally = document.createElement('div');
+            tally.id = 'tallyRef';
+            tally.className = 'tally-ref';
+            tally.innerHTML = `<span>Last show:</span><span class="tally-wow">⭐ ${wowCount} WOW</span><span class="tally-oops">💥 ${oopsCount} OOPS</span><span>Net: ${liveScore > 0 ? '+' : ''}${liveScore}</span>`;
+            const footerInner = document.querySelector('.footer-inner');
+            footerInner.appendChild(tally);
+        }
+
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+        document.addEventListener('fullscreenchange', updateFullscreenButton);
+
+        resetBtn.addEventListener('click', () => {
+            if (confirm('Reset the current show back to your saved baselines?')) {
+                scores = scoreMapFromBaselines(categories, baselines);
+                saveScores();
+                renderCategories();
+                updateTotal();
+                // Clear live mode totals
+                wowCount = 0;
+                oopsCount = 0;
+                liveScore = 0;
+                wowCountEl.textContent = '0';
+                oopsCountEl.textContent = '0';
+                document.getElementById('liveScore').textContent = '0';
+                const tallyRef = document.getElementById('tallyRef');
+                if (tallyRef) tallyRef.remove();
+            }
+        });
+
+        settingsBtn.addEventListener('click', openSettings);
+        closeSettingsBtn.addEventListener('click', () => settingsDialog.close());
+        defaultsBtn.addEventListener('click', restoreDefaultInputs);
+        document.getElementById('saveIncrementBtn').addEventListener('click', () => {
+            const val = parseFloat(document.getElementById('incrementInput').value);
+            if (!Number.isFinite(val) || val <= 0) {
+                alert('Enter a valid increment greater than 0.');
+                return;
+            }
+            scoreIncrement = Math.round(val * 1000) / 1000;
+            localStorage.setItem(STORAGE_KEYS.increment, scoreIncrement);
+        });
+        addCategoryBtn.addEventListener('click', addEditableCategory);
+        closeInfoBtn.addEventListener('click', () => infoDialog.close());
+        restoreCategoriesBtn.addEventListener('click', restoreDefaultCategories);
+
+        tabButtons.forEach((button) => {
+            button.addEventListener('click', () => setActiveTab(button.dataset.tab));
+        });
+
+        settingsForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const formData = new FormData(settingsForm);
+            const nextBaselines = {};
+
+            categories.forEach((category) => {
+                const parsed = parseInt(formData.get(category.id), 10);
+                nextBaselines[category.id] = Number.isFinite(parsed)
+                    ? clamp(parsed, 0, category.max)
+                    : category.baseline;
+            });
+
+            baselines = nextBaselines;
+            scores = scoreMapFromBaselines(categories, baselines);
+            saveBaselines();
+            saveScores();
+            settingsDialog.close();
+            renderCategories();
+            updateTotal();
+        });
+
+        categoriesForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+
+            const nextCategories = editableCategories
+                .map((category) => sanitizeEditableCategory(category))
+                .filter(Boolean);
+
+            if (!nextCategories.length) {
+                alert('Keep at least one category.');
+                return;
+            }
+
+            if (hasDuplicateLabels(nextCategories)) {
+                alert('Category names must be unique.');
+                return;
+            }
+
+            categories = nextCategories.map((category) => ({ ...category }));
+            baselines = baselineMapFromCategories(categories);
+            scores = scoreMapFromBaselines(categories, baselines);
+            saveCategories();
+            saveBaselines();
+            saveScores();
+            settingsDialog.close();
+            renderCategories();
+            updateTotal();
+        });
+
+        function renderCategories() {
+            categoriesEl.innerHTML = '';
+
+            categories.forEach((category) => {
+                const value = scores[category.id] ?? baselines[category.id] ?? category.baseline;
+                const baseline = baselines[category.id] ?? category.baseline;
+
+                const card = document.createElement('section');
+                card.className = 'category-card clickable';
+                if (value > baseline) card.classList.add('above');
+                if (value < baseline) card.classList.add('below');
+
+                card.innerHTML = `
+              <div class="category-top">
+                <div class="category-title">${escapeHtml(category.label)}</div>
+                <div class="category-meta">
+                  <div>Baseline: ${baseline}</div>
+                  <div>Max: ${category.max}</div>
+                </div>
+              </div>
+              <div class="controls">
+                <button class="score-btn" type="button" aria-label="Decrease ${escapeHtml(category.label)}" data-action="decrease" data-id="${category.id}">−</button>
+                <div class="score-display" aria-live="polite">${+value.toFixed(3)}</div>
+                <button class="score-btn" type="button" aria-label="Increase ${escapeHtml(category.label)}" data-action="increase" data-id="${category.id}">+</button>
+              </div>
+            `;
+
+                card.addEventListener('click', (event) => {
+                    if (event.target.closest('.score-btn')) return;
+                    openCategoryInfo(category.id);
+                });
+
+                categoriesEl.appendChild(card);
+            });
+
+            document.querySelectorAll('.score-btn').forEach((btn) => {
+                btn.addEventListener('click', handleScoreTap);
+            });
+        }
+
+        function handleScoreTap(event) {
+            const categoryId = event.currentTarget.dataset.id;
+            const action = event.currentTarget.dataset.action;
+            const category = categories.find((item) => item.id === categoryId);
+            if (!category) return;
+
+            const current = scores[categoryId] ?? baselines[categoryId] ?? category.baseline;
+            const raw = action === 'increase'
+                ? current + scoreIncrement
+                : current - scoreIncrement;
+            // Round to avoid floating point drift (e.g. 0.1+0.2 issues)
+            const next = clamp(Math.round(raw * 1000) / 1000, 0, category.max);
+
+            if (next === current) return;
+
+            scores[categoryId] = next;
+            saveScores();
+
+            // Update score display and card color class in-place to avoid full re-render flicker
+            const btn = event.currentTarget;
+            const card = btn.closest('.category-card');
+            if (card) {
+                const display = card.querySelector('.score-display');
+                if (display) display.textContent = +next.toFixed(3);
+                const baseline = baselines[categoryId] ?? category.baseline;
+                card.classList.toggle('above', next > baseline);
+                card.classList.toggle('below', next < baseline);
+            } else {
+                // Fallback if card not found
+                renderCategories();
+            }
+
+            updateTotal();
+        }
+
+        function openCategoryInfo(categoryId) {
+            const category = categories.find((item) => item.id === categoryId);
+            if (!category) return;
+
+            infoDialogTitle.textContent = category.label;
+            const description = String(category.description || '').trim();
+
+            infoDialogDescription.className = description ? 'info-description' : 'info-empty';
+            infoDialogDescription.textContent = description || 'No description has been added for this category yet.';
+            infoDialog.showModal();
+        }
+
+        function updateTotal() {
+            const total = categories.reduce((sum, category) => sum + (scores[category.id] ?? 0), 0);
+            totalScoreEl.textContent = total;
+        }
+
+        async function toggleFullscreen() {
+            try {
+                if (document.fullscreenElement) {
+                    await document.exitFullscreen();
+                    return;
+                }
+
+                if (document.documentElement.requestFullscreen) {
+                    await document.documentElement.requestFullscreen();
+                    return;
+                }
+
+                alert('Full screen is not supported in this browser. On iPhone, add this page to your Home Screen for the most app-like full-screen view.');
+            } catch {
+                alert('Could not enter full screen here. On iPhone, add this page to your Home Screen for the most app-like full-screen view.');
+            }
+        }
+
+        function updateFullscreenButton() {
+            fullscreenBtn.textContent = document.fullscreenElement ? '⤢ Exit' : '⛶ Full';
+        }
+
+        function openSettings() {
+            editableCategories = categories.map((category) => ({ ...category }));
+            renderBaselineSettings();
+            renderCategoriesManager();
+            setActiveTab(activeTab);
+            settingsDialog.showModal();
+        }
+
+        function renderBaselineSettings() {
+            settingsBody.innerHTML = '';
+
+            categories.forEach((category) => {
+                const row = document.createElement('div');
+                row.className = 'setting-row';
+                row.innerHTML = `
+              <label for="baseline-${category.id}">
+                ${escapeHtml(category.label)}
+              </label>
+              <input
+                id="baseline-${category.id}"
+                name="${category.id}"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                max="${category.max}"
+                step="1"
+                value="${baselines[category.id] ?? category.baseline}"
+              />
+              <div class="max-pill">/ ${category.max}</div>
+            `;
+                settingsBody.appendChild(row);
+            });
+        }
+
+        function renderCategoriesManager() {
+            categoriesManager.innerHTML = '';
+
+            if (!editableCategories.length) {
+                const empty = document.createElement('div');
+                empty.className = 'empty-text';
+                empty.textContent = 'No categories yet.';
+                categoriesManager.appendChild(empty);
+            }
+
+            editableCategories.forEach((category, index) => {
+                const row = document.createElement('div');
+                row.className = 'manage-row';
+                row.innerHTML = `
+              <div class="field-stack">
+                <label for="cat-label-${category.id}">Name</label>
+                <input id="cat-label-${category.id}" type="text" value="${escapeAttribute(category.label)}" maxlength="40" data-field="label" data-index="${index}" />
+              </div>
+              <div class="field-stack">
+                <label for="cat-max-${category.id}">Max</label>
+                <input id="cat-max-${category.id}" type="number" inputmode="numeric" min="1" max="999" step="1" value="${category.max}" data-field="max" data-index="${index}" />
+              </div>
+              <div class="field-stack">
+                <label for="cat-base-${category.id}">Baseline</label>
+                <input id="cat-base-${category.id}" type="number" inputmode="numeric" min="0" max="${category.max}" step="1" value="${category.baseline}" data-field="baseline" data-index="${index}" />
+              </div>
+              <button class="icon-btn" type="button" aria-label="Delete ${escapeHtml(category.label)}" data-delete-index="${index}">🗑</button>
+              <div class="field-stack description-row">
+                <label for="cat-description-${category.id}">Description</label>
+                <textarea id="cat-description-${category.id}" maxlength="500" data-field="description" data-index="${index}" placeholder="What should this category mean while judging?">${escapeHtml(category.description || '')}</textarea>
+              </div>
+            `;
+                categoriesManager.appendChild(row);
+            });
+
+            const addRow = document.createElement('div');
+            addRow.className = 'new-category-row';
+            addRow.innerHTML = `
+            <div class="field-stack">
+              <label for="new-category-name">New category</label>
+              <input id="new-category-name" type="text" placeholder="Category name" maxlength="40" />
+            </div>
+            <div class="field-stack">
+              <label for="new-category-max">Max</label>
+              <input id="new-category-max" type="number" inputmode="numeric" min="1" max="999" step="1" value="10" />
+            </div>
+            <div class="field-stack">
+              <label for="new-category-baseline">Baseline</label>
+              <input id="new-category-baseline" type="number" inputmode="numeric" min="0" max="999" step="1" value="8" />
+            </div>
+            <div class="field-stack description-row">
+              <label for="new-category-description">Description</label>
+              <textarea id="new-category-description" maxlength="500" placeholder="Optional judging guidance"></textarea>
+            </div>
+          `;
+            categoriesManager.appendChild(addRow);
+
+            categoriesManager.querySelectorAll('[data-field]').forEach((input) => {
+                input.addEventListener('input', handleEditableCategoryChange);
+            });
+
+            categoriesManager.querySelectorAll('[data-delete-index]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const index = parseInt(button.dataset.deleteIndex, 10);
+                    if (!Number.isFinite(index)) return;
+                    editableCategories.splice(index, 1);
+                    renderCategoriesManager();
+                });
+            });
+        }
+
+        function handleEditableCategoryChange(event) {
+            const index = parseInt(event.target.dataset.index, 10);
+            const field = event.target.dataset.field;
+            if (!Number.isFinite(index) || !editableCategories[index]) return;
+
+            const category = editableCategories[index];
+            if (field === 'label') {
+                category.label = event.target.value;
+                return;
+            }
+
+            if (field === 'description') {
+                category.description = event.target.value;
+                return;
+            }
+
+            const parsed = parseInt(event.target.value, 10);
+            if (field === 'max') {
+                category.max = Number.isFinite(parsed) ? Math.max(1, parsed) : category.max;
+                if (category.baseline > category.max) {
+                    category.baseline = category.max;
+                    renderCategoriesManager();
+                }
+                return;
+            }
+
+            if (field === 'baseline') {
+                category.baseline = Number.isFinite(parsed) ? clamp(parsed, 0, category.max) : category.baseline;
+            }
+        }
+
+        function addEditableCategory() {
+            const nameInput = document.getElementById('new-category-name');
+            const maxInput = document.getElementById('new-category-max');
+            const baselineInput = document.getElementById('new-category-baseline');
+            const descriptionInput = document.getElementById('new-category-description');
+
+            const label = (nameInput.value || '').trim();
+            const max = parseInt(maxInput.value, 10);
+            const baseline = parseInt(baselineInput.value, 10);
+
+            if (!label) {
+                alert('Enter a category name first.');
+                nameInput.focus();
+                return;
+            }
+
+            const safeMax = Number.isFinite(max) ? Math.max(1, max) : 10;
+            const safeBaseline = Number.isFinite(baseline) ? clamp(baseline, 0, safeMax) : 0;
+
+            editableCategories.push({
+                id: createId(label),
+                label,
+                max: safeMax,
+                baseline: safeBaseline,
+                description: (descriptionInput.value || '').trim()
+            });
+
+            nameInput.value = '';
+            maxInput.value = '10';
+            baselineInput.value = '8';
+            descriptionInput.value = '';
+            renderCategoriesManager();
+        }
+
+        function restoreDefaultInputs() {
+            categories.forEach((category) => {
+                const defaultCategory = defaultCategoryTemplate.find((item) => item.id === category.id);
+                const input = document.getElementById(`baseline-${category.id}`);
+                if (input) {
+                    input.value = defaultCategory ? defaultCategory.baseline : category.baseline;
+                }
+            });
+        }
+
+        function restoreDefaultCategories() {
+            if (!confirm('Restore the original category list and discard custom categories?')) return;
+            editableCategories = defaultCategoryTemplate.map((category) => ({ ...category }));
+            renderCategoriesManager();
+        }
+
+        function setActiveTab(tabName) {
+            activeTab = tabName;
+            tabButtons.forEach((button) => {
+                button.classList.toggle('active', button.dataset.tab === tabName);
+            });
+
+            Object.entries(tabPanels).forEach(([name, panel]) => {
+                panel.hidden = name !== tabName;
+            });
+        }
+
+        function normalizeState() {
+            categories = sanitizeLoadedCategories(categories);
+            baselines = sanitizeBaselineMap(baselines, categories);
+            scores = sanitizeScoreMap(scores, categories, baselines);
+            saveCategories();
+            saveBaselines();
+            saveScores();
+        }
+
+        function sanitizeLoadedCategories(input) {
+            const source = Array.isArray(input) && input.length ? input : defaultCategoryTemplate;
+            const seen = new Set();
+            const cleaned = [];
+
+            source.forEach((item, index) => {
+                const rawLabel = typeof item?.label === 'string' ? item.label.trim() : '';
+                const label = rawLabel || `Category ${index + 1}`;
+                const max = Number.isFinite(parseInt(item?.max, 10)) ? Math.max(1, parseInt(item.max, 10)) : 10;
+                const baseline = Number.isFinite(parseInt(item?.baseline, 10)) ? clamp(parseInt(item.baseline, 10), 0, max) : 0;
+                let id = typeof item?.id === 'string' ? item.id.trim() : '';
+                if (!id || seen.has(id)) id = createId(label);
+                while (seen.has(id)) id = `${id}-${Math.random().toString(36).slice(2, 5)}`;
+                seen.add(id);
+                const defaultCategory = defaultCategoryTemplate.find(d => d.id === item?.id);
+
+                const description =
+                    typeof item?.description === 'string' && item.description.trim()
+                        ? item.description.trim()
+                        : (defaultCategory?.description || '');
+                cleaned.push({ id, label, max, baseline, description });
+            });
+
+            return cleaned;
+        }
+
+        function sanitizeBaselineMap(input, categoryList) {
+            const map = {};
+            categoryList.forEach((category) => {
+                const parsed = parseFloat(input?.[category.id]);
+                map[category.id] = Number.isFinite(parsed)
+                    ? clamp(parsed, 0, category.max)
+                    : category.baseline;
+            });
+            return map;
+        }
+
+        function sanitizeScoreMap(input, categoryList, baselineMap) {
+            const map = {};
+            categoryList.forEach((category) => {
+                const parsed = parseFloat(input?.[category.id]);
+                map[category.id] = Number.isFinite(parsed)
+                    ? clamp(parsed, 0, category.max)
+                    : baselineMap[category.id];
+            });
+            return map;
+        }
+
+        function sanitizeEditableCategory(category) {
+            const label = String(category.label || '').trim();
+            if (!label) return null;
+
+            const max = Number.isFinite(parseInt(category.max, 10)) ? Math.max(1, parseInt(category.max, 10)) : 10;
+            const baseline = Number.isFinite(parseInt(category.baseline, 10))
+                ? clamp(parseInt(category.baseline, 10), 0, max)
+                : 0;
+
+            return {
+                id: category.id || createId(label),
+                label,
+                max,
+                baseline,
+                description: String(category.description || '').trim()
+            };
+        }
+
+        function hasDuplicateLabels(categoryList) {
+            const normalized = categoryList.map((category) => category.label.trim().toLowerCase());
+            return new Set(normalized).size !== normalized.length;
+        }
+
+        function baselineMapFromCategories(categoryList) {
+            return categoryList.reduce((map, category) => {
+                map[category.id] = category.baseline;
+                return map;
+            }, {});
+        }
+
+        function scoreMapFromBaselines(categoryList, baselineMap) {
+            const cats = categoryList ?? categories;
+            const bls = baselineMap ?? baselines;
+            return cats.reduce((map, category) => {
+                map[category.id] = bls[category.id] ?? category.baseline;
+                return map;
+            }, {});
+        }
+
+        function loadCategories() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEYS.categories);
+                if (raw === null) return defaultCategoryTemplate;
+                return JSON.parse(raw) ?? defaultCategoryTemplate;
+            } catch {
+                return defaultCategoryTemplate;
+            }
+        }
+
+        function loadBaselines() {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEYS.baselines)) || {};
+            } catch {
+                return {};
+            }
+        }
+
+        function loadScores() {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEYS.scores)) || {};
+            } catch {
+                return {};
+            }
+        }
+
+        function loadIncrement() {
+            const raw = localStorage.getItem(STORAGE_KEYS.increment);
+            const parsed = parseFloat(raw);
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : 0.5;
+        }
+
+        function saveCategories() {
+            localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(categories));
+        }
+
+        function saveBaselines() {
+            localStorage.setItem(STORAGE_KEYS.baselines, JSON.stringify(baselines));
+        }
+
+        function saveScores() {
+            localStorage.setItem(STORAGE_KEYS.scores, JSON.stringify(scores));
+        }
+
+        function createId(label) {
+            const base = String(label || 'category')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '') || 'category';
+            return `${base}-${Math.random().toString(36).slice(2, 7)}`;
+        }
+
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function escapeAttribute(value) {
+            return escapeHtml(value);
+        }
+    </script>
+</body>
+</html>
