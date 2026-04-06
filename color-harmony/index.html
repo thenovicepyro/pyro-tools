@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Harmony Schemes</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #111111;
+            color: #f3f3f3;
+            font-family: 'Source Sans 3', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 48px 40px;
+            min-height: 100vh;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 900;
+            color: #f7f7f7;
+            letter-spacing: 0.04em;
+            margin-bottom: 48px;
+            text-align: center;
+        }
+
+        .wheels-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 52px 44px;
+        }
+
+        .wheel-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .wheel-title {
+            font-size: 24px;
+            font-weight: 900;
+            color: #e8e8e8;
+            text-align: center;
+        }
+
+        .wheel-wrap {
+            position: relative;
+            width: 180px;
+            height: 180px;
+        }
+
+        svg {
+            filter: drop-shadow(0 6px 18px rgba(0,0,0,0.45));
+            overflow: visible;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .dim {
+            opacity: 0.20;
+        }
+
+        .active {
+            opacity: 0.95;
+        }
+
+        .helper-text {
+            font-size: 14px;
+            color: #b8b8b8;
+            text-align: center;
+            max-width: 180px;
+            line-height: 1.25;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Color Harmony Schemes</h1>
+
+    <div class="wheels-container" id="wheels"></div>
+
+    <script>
+        const colors = [
+            '#ffff01',
+            '#ffc001',
+            '#ff8001',
+            '#ff4001',
+            '#ff0101',
+            '#c00140',
+            '#800180',
+            '#55318d',
+            '#2a609a',
+            '#158467',
+            '#01a934',
+            '#81d51a'
+        ];
+
+        const cx = 90;
+        const cy = 90;
+        const outerR = 80;
+        const innerR = 30;
+        const sliceAngle = 360 / 12;
+        const startOffset = -90 - (sliceAngle / 2);
+
+        const wheelConfigs = [
+            {
+                title: 'Monochromatic',
+                helper: 'Drag the active swatch around the wheel.',
+                type: 'mono',
+                base: 6
+            },
+            {
+                title: 'Complementary',
+                helper: 'Drag either active swatch.',
+                type: 'offsets',
+                base: 0,
+                offsets: [0, 6]
+            },
+            {
+                title: 'Analogous',
+                helper: 'Drag any active swatch.',
+                type: 'offsets',
+                base: 10,
+                offsets: [-1, 0, 1]
+            },
+            {
+                title: 'Triadic',
+                helper: 'Drag any active swatch.',
+                type: 'offsets',
+                base: 0,
+                offsets: [0, 4, 8]
+            },
+            {
+                title: 'Tetradic',
+                helper: 'Drag any active swatch.',
+                type: 'offsets',
+                base: 0,
+                offsets: [0, 3, 6, 9]
+            }
+        ];
+
+        function mod(n, m) {
+            return ((n % m) + m) % m;
+        }
+
+        function arcPoint(index, radius, end) {
+            const angleDeg = startOffset + (index * sliceAngle) + (end ? sliceAngle : 0);
+            const angleRad = angleDeg * Math.PI / 180;
+            return {
+                x: cx + Math.cos(angleRad) * radius,
+                y: cy + Math.sin(angleRad) * radius
+            };
+        }
+
+        function donutWedgePath(index) {
+            const outerStart = arcPoint(index, outerR, false);
+            const outerEnd = arcPoint(index, outerR, true);
+            const innerEnd = arcPoint(index, innerR, true);
+            const innerStart = arcPoint(index, innerR, false);
+
+            return [
+                `M ${outerStart.x} ${outerStart.y}`,
+                `A ${outerR} ${outerR} 0 0 1 ${outerEnd.x} ${outerEnd.y}`,
+                `L ${innerEnd.x} ${innerEnd.y}`,
+                `A ${innerR} ${innerR} 0 0 0 ${innerStart.x} ${innerStart.y}`,
+                'Z'
+            ].join(' ');
+        }
+
+        function getActiveIndexes(config) {
+            if (config.type === 'mono') {
+                return [mod(config.base, 12)];
+            }
+
+            return config.offsets.map(offset => mod(config.base + offset, 12));
+        }
+
+        function buildWheelBlock(config) {
+            const block = document.createElement('div');
+            block.className = 'wheel-block';
+
+            const title = document.createElement('div');
+            title.className = 'wheel-title';
+            title.textContent = config.title;
+
+            const wrap = document.createElement('div');
+            wrap.className = 'wheel-wrap';
+
+            const helper = document.createElement('div');
+            helper.className = 'helper-text';
+            helper.textContent = config.helper;
+
+            const svgNS = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(svgNS, 'svg');
+            svg.setAttribute('width', '180');
+            svg.setAttribute('height', '180');
+            svg.setAttribute('viewBox', '0 0 180 180');
+
+            const wedgesGroup = document.createElementNS(svgNS, 'g');
+            const center = document.createElementNS(svgNS, 'circle');
+            center.setAttribute('cx', cx);
+            center.setAttribute('cy', cy);
+            center.setAttribute('r', innerR);
+            center.setAttribute('fill', '#111111');
+
+            for (let i = 0; i < 12; i++) {
+                const path = document.createElementNS(svgNS, 'path');
+                path.setAttribute('d', donutWedgePath(i));
+                path.dataset.index = i;
+                wedgesGroup.appendChild(path);
+            }
+
+            svg.appendChild(wedgesGroup);
+            svg.appendChild(center);
+            wrap.appendChild(svg);
+            block.appendChild(title);
+            block.appendChild(wrap);
+            block.appendChild(helper);
+
+            function render() {
+                const activeSet = new Set(getActiveIndexes(config));
+
+                // remove any previous highlight arcs from earlier renders
+                Array.from(svg.querySelectorAll('.active-outer-highlight')).forEach(el => el.remove());
+
+                Array.from(wedgesGroup.children).forEach((path, index) => {
+                    const isActive = activeSet.has(index);
+                    path.setAttribute('fill', colors[index]);
+                    path.setAttribute('class', isActive ? 'active' : 'dim');
+                    path.setAttribute('stroke', 'none');
+                    path.style.cursor = isActive ? 'grab' : 'default';
+                });
+
+                // draw separate outer-edge highlight arcs above the wedges,
+                // so the wedge geometry itself never changes while dragging.
+                activeSet.forEach(index => {
+                    const outerStart = arcPoint(index, outerR, false);
+                    const outerEnd = arcPoint(index, outerR, true);
+
+                    const highlight = document.createElementNS(svgNS, 'path');
+                    highlight.setAttribute('d', `M ${outerStart.x} ${outerStart.y} A ${outerR} ${outerR} 0 0 1 ${outerEnd.x} ${outerEnd.y}`);
+                    highlight.setAttribute('fill', 'none');
+                    highlight.setAttribute('stroke', '#ffffff');
+                    highlight.setAttribute('stroke-width', '3');
+                    highlight.setAttribute('stroke-linecap', 'round');
+                    highlight.setAttribute('class', 'active-outer-highlight');
+                    svg.appendChild(highlight);
+                });
+            }
+
+            function pointerToSlice(event) {
+                const rect = svg.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                const dx = x - cx;
+                const dy = y - cy;
+                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                const normalized = mod(angle - startOffset, 360);
+                return mod(Math.floor(normalized / sliceAngle), 12);
+            }
+
+            function beginDrag(event) {
+                document.body.style.cursor = 'grabbing';
+                const target = event.target;
+                if (target.tagName !== 'path') {
+                    return;
+                }
+
+                const clickedIndex = Number(target.dataset.index);
+                const activeIndexes = getActiveIndexes(config);
+                if (!activeIndexes.includes(clickedIndex)) {
+                    return;
+                }
+
+                let selectedOffset = 0;
+                if (config.type === 'offsets') {
+                    selectedOffset = mod(clickedIndex - config.base, 12);
+                    selectedOffset = config.offsets.find(offset => mod(offset, 12) === selectedOffset) ?? 0;
+                }
+
+                event.preventDefault();
+                svg.setPointerCapture(event.pointerId);
+
+                function move(moveEvent) {
+                    const newSlice = pointerToSlice(moveEvent);
+
+                    if (config.type === 'mono') {
+                        config.base = newSlice;
+                    } else {
+                        config.base = mod(newSlice - selectedOffset, 12);
+                    }
+
+                    render();
+                }
+
+                function end(endEvent) {
+                    document.body.style.cursor = '';
+                    if (svg.hasPointerCapture(endEvent.pointerId)) {
+                        svg.releasePointerCapture(endEvent.pointerId);
+                    }
+                    svg.removeEventListener('pointermove', move);
+                    svg.removeEventListener('pointerup', end);
+                    svg.removeEventListener('pointercancel', end);
+                }
+
+                svg.addEventListener('pointermove', move);
+                svg.addEventListener('pointerup', end);
+                svg.addEventListener('pointercancel', end);
+            }
+
+            svg.addEventListener('pointerdown', beginDrag);
+            render();
+            return block;
+        }
+
+        const wheels = document.getElementById('wheels');
+        wheelConfigs.forEach(config => {
+            wheels.appendChild(buildWheelBlock(config));
+        });
+    </script>
+
+</body>
+</html>
